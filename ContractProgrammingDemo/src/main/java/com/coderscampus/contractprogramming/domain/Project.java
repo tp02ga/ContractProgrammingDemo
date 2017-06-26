@@ -48,4 +48,9 @@ public class Project
   {
     this.client = client;
   }
+  @Override
+  public String toString()
+  {
+    return "Project [id=" + id + ", name=" + name + ", cost=" + cost + "]";
+  }
 }
