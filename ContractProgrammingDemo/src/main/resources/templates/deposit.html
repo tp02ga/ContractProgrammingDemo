@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://thymeleaf.org">
+  <head>
+    <title>Client Deposit Page</title>
+  </head>
+  <body>
+    <h1>To Complete Your Booking, Please Make A Deposit</h1>
+    
+    <form action="" method="POST">
+      <script
+        src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+        data-key="pk_test_UE4EJ3S8CTer2dnVaNDBfrZx"
+        data-amount="1000"
+        data-name="Deposit for Call with Trevor"
+        data-description="Refundable deposit"
+        data-image="https://stripe.com/img/documentation/checkout/marketplace.png"
+        data-locale="auto"
+        data-currency="usd"
+        th:attr="data-email=${client.email}">
+      </script>
+    </form>
+  </body>
+</html>
