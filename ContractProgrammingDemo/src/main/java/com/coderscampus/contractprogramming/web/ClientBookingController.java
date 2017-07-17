@@ -25,10 +25,14 @@ import com.stripe.exception.CardException;
 import com.stripe.exception.InvalidRequestException;
 import com.stripe.model.Charge;
 import com.stripe.model.Customer;
+import com.stripe.model.Plan;
+import com.stripe.model.Subscription;
 
 @Controller
 public class ClientBookingController
 {
+  private static final String TREVOR_PROGRAMMING_PLAN = "trevor-programming-plan";
+  
   @Autowired
   private ClientRepository clientRepo;
 
@@ -56,16 +60,19 @@ public class ClientBookingController
     {
       Client client = clients.iterator().next();
       model.put("client", client);
-    }
-    else
+    } else
     {
       model.put("client", new Client());
     }
     return "deposit";
   }
-  
-  @RequestMapping(value="/deposit", method=RequestMethod.POST)
-  public String depositPagePost (@RequestParam(name="stripeToken") String token, @RequestParam String stripeEmail) throws AuthenticationException, InvalidRequestException, APIConnectionException, CardException, APIException
+
+  @RequestMapping(value = "/deposit", method = RequestMethod.POST)
+  public String depositPagePost(
+      @RequestParam(name = "stripeToken") String token,
+      @RequestParam String stripeEmail)
+      throws AuthenticationException, InvalidRequestException,
+      APIConnectionException, CardException, APIException
   {
     // Set your secret key: remember to change this to your live secret key in
     // production
@@ -79,54 +86,59 @@ public class ClientBookingController
     Customer customer = Customer.create(customerParams);
 
     Set<Client> clients = clientRepo.findByEmail(stripeEmail);
-    
+
     Iterator<Client> itr = clients.iterator();
-    
-    Optional<Client> clientOpt = itr.hasNext() ? Optional.of(itr.next()) : Optional.empty();
+
+    Optional<Client> clientOpt = itr.hasNext()
+        ? Optional.of(itr.next())
+        : Optional.empty();
     Client client = null;
-    
+
     if (clientOpt.isPresent())
     {
       client = clientOpt.get();
-    }
-    else
+    } else
     {
-      throw new IllegalArgumentException("There was no client with email address: " + stripeEmail + " found.");
+      throw new IllegalArgumentException(
+          "There was no client with email address: " + stripeEmail + " found.");
     }
-    
+
     client.setStripeId(customer.getId());
     clientRepo.save(client);
-    
+
     // Charge the Customer instead of the card:
     Map<String, Object> chargeParams = new HashMap<String, Object>();
     chargeParams.put("amount", 1000);
     chargeParams.put("currency", "usd");
     chargeParams.put("customer", customer.getId());
     Charge.create(chargeParams);
-    
-    return "redirect:/thankyou?email="+stripeEmail;
+
+    return "redirect:/thankyou?email=" + stripeEmail;
   }
-  
-  @RequestMapping(value="/thankyou", method=RequestMethod.GET)
-  public String thankYouPage (@RequestParam String email, ModelMap model)
+
+  @RequestMapping(value = "/thankyou", method = RequestMethod.GET)
+  public String thankYouPage(@RequestParam String email, ModelMap model)
   {
     model.put("email", email);
     return "thankyou";
   }
-  
-  @RequestMapping(value="/thankyou", method=RequestMethod.POST)
-  public String thankYouPagePost (@RequestParam String email, ModelMap model) throws AuthenticationException, InvalidRequestException, APIConnectionException, CardException, APIException
+
+  @RequestMapping(value = "/thankyou", method = RequestMethod.POST)
+  public String thankYouPagePost(@RequestParam String email, ModelMap model)
+      throws AuthenticationException, InvalidRequestException,
+      APIConnectionException, CardException, APIException
   {
     Set<Client> clients = clientRepo.findByEmail(email);
-    
+
     Iterator<Client> itr = clients.iterator();
-    
+
     if (itr.hasNext())
     {
       Client client = itr.next();
       if (!StringUtils.isEmpty(client.getStripeId()))
       {
-       // YOUR CODE (LATER): When it's time to charge the customer again, retrieve the customer ID.
+        // YOUR CODE (LATER): When it's time to charge the customer again,
+        // retrieve the customer ID.
         Map<String, Object> chargeParams = new HashMap<String, Object>();
         chargeParams.put("amount", 780000);
         chargeParams.put("currency", "usd");
@@ -136,11 +148,73 @@ public class ClientBookingController
     }
     return "redirect:thankyou2";
   }
-  
-  @RequestMapping(value="/thankyou2", method=RequestMethod.GET)
-  public String thankYouPage2 (ModelMap model)
+
+  @RequestMapping(value = "/subscribe", method = RequestMethod.POST)
+  public String subscribePost(@RequestParam(name = "email") String email)
+      throws AuthenticationException, InvalidRequestException,
+      APIConnectionException, CardException, APIException
+  {
+    createStripePlanIfNeeded();
+
+    // Set your secret key: remember to change this to your live secret key in
+    // production
+    // See your keys here: https://dashboard.stripe.com/account/apikeys
+    Stripe.apiKey = "sk_test_Bsbu9k4pO0R5qjqmIgNNGpKF";
+
+    Set<Client> clients = clientRepo.findByEmail(email);
+    
+    Optional<Client> clientOpt = clients.stream().filter(c -> !StringUtils.isEmpty(c.getStripeId()))
+                                        .findFirst();
+    
+    if (clientOpt.isPresent())
+    {
+      Client client = clientOpt.get();
+      
+      Map<String, Object> params = new HashMap<String, Object>();
+      params.put("customer", client.getStripeId());
+      params.put("plan", TREVOR_PROGRAMMING_PLAN);
+      
+      Subscription.create(params);
+    }
+
+    return "redirect:subscribeSuccess";
+  }
+
+  @RequestMapping(value = "/thankyou2", method = RequestMethod.GET)
+  public String thankYouPage2(ModelMap model)
   {
     return "thankyou2";
   }
+
+  @RequestMapping(value = "/subscribeSuccess", method = RequestMethod.GET)
+  public String subscribeSuccessGet ()
+  {
+    return "subscribeSuccess";
+  }
   
+  private void createStripePlanIfNeeded()
+      throws AuthenticationException, APIConnectionException, CardException,
+      APIException, InvalidRequestException
+  {
+    // Set your secret key: remember to change this to your live secret key in
+    // production
+    // See your keys here: https://dashboard.stripe.com/account/apikeys
+    Stripe.apiKey = "sk_test_Bsbu9k4pO0R5qjqmIgNNGpKF";
+
+    try
+    {
+      Plan.retrieve(TREVOR_PROGRAMMING_PLAN);
+    } catch (InvalidRequestException e)
+    {
+      // this will throw an invalidrequestexception if the plan doesn't exist
+      Map<String, Object> params = new HashMap<String, Object>();
+      params.put("name", "Trevor Programming Plan");
+      params.put("id", TREVOR_PROGRAMMING_PLAN);
+      params.put("interval", "month");
+      params.put("currency", "usd");
+      params.put("amount", 728000);
+
+      Plan.create(params);
+    }
+  }
 }

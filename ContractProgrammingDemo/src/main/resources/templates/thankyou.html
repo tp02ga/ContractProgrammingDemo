@@ -6,6 +6,8 @@
   <body>
     <h1>Your phone call has been booked, Trevor will contact you soon.</h1>
     
+    <h3>Purchase one month and save 25%</h3>
+    
     <p>Want to get a great introductory rate on a month's worth of coding?</p>
     
     <p>Get 25% off our normal rate by pre-booking your time now?</p>
@@ -15,5 +17,16 @@
     <form action="" method="post">
       <button>Book Now</button>
     </form>
+    
+    <h3>Subscribe to monthly and save 30%</h3>
+    
+    <p>Hire Trevor on a monthly basis and save 30% off of his normal going rate.</p>
+    
+    <p>You will be billed automatically every month at the rate of $7,280 (instead of $10,400)</p>
+    
+    <form th:action="@{/subscribe?email={em}(em=${email})}" method="post">
+      <button>Subscribe Now</button>
+    </form>
+    
   </body>
 </html>
